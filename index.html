@@ -507,6 +507,9 @@
             <canvas id="worldMapChart" height="45"></canvas>
         </div>
 
+        <!-- Sheet2 debug -->
+        <div id="sheet2debug" style="background:#fef3c7;border:1px solid #f59e0b;border-radius:8px;padding:1rem;margin-bottom:1rem;font-family:monospace;font-size:0.8rem;white-space:pre-wrap;display:none"></div>
+
         <!-- Kjønnsfordeling -->
         <div class="charts-grid" style="grid-template-columns:1fr 1fr 1fr">
             <div class="chart-card"><h3>Kjønnsfordeling forfattere</h3><canvas id="genderAuthorsChart"></canvas></div>
@@ -611,9 +614,12 @@ function csvToBooks(rows) {
 
 // ===================== SHEET 2 PARSER =====================
 function parseSheet2(rows) {
-    if (rows.length < 2) return;
+    const dbg = document.getElementById('sheet2debug');
+    if (rows.length < 2) {
+        if (dbg) { dbg.style.display='block'; dbg.textContent = 'Sheet2: ingen rader'; }
+        return;
+    }
     const headers = rows[0].map(h => h.trim());
-    console.log('[Sheet2] headers:', headers);
     const idx = needle => headers.findIndex(h => h.toLowerCase().includes(needle.toLowerCase()));
 
     const cForfatter  = idx('forfatter');
@@ -621,8 +627,11 @@ function parseSheet2(rows) {
     const cBok        = idx('bok');
     const cKjonnHoved = idx('kjønn hovedperson');
     const cNobel      = idx('nobel');
-    console.log('[Sheet2] cols → forfatter:', cForfatter, 'kjønn:', cKjonn, 'bok:', cBok, 'kjønn hovedperson:', cKjonnHoved, 'nobel:', cNobel);
-    console.log('[Sheet2] first data row:', rows[1]);
+
+    if (dbg) {
+        dbg.style.display = 'block';
+        dbg.textContent = `Sheet2 debug (slett meg når ferdig)\nAntall rader: ${rows.length}\nHeaders: ${JSON.stringify(headers)}\nForfatter-kol: ${cForfatter}, Kjønn-kol: ${cKjonn}, Bok-kol: ${cBok}, Kjønn hoved-kol: ${cKjonnHoved}, Nobel-kol: ${cNobel}\nRad 1: ${JSON.stringify(rows[1])}`;
+    }
 
     for (let i = 1; i < rows.length; i++) {
         const r = rows[i];
