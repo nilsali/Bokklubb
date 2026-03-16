@@ -1019,7 +1019,10 @@ function renderAll(books) {
         plugins:{legend:{position:'top'}},
         scales:{
             y:{min:1, max:5, ticks:{stepSize:1}, grid:{display:false}},
-            x:{type:'linear', min:-0.5, max:done.length-0.5, ticks:{stepSize:1, callback:(v)=>st(done[Math.round(v)]?.title??''), font:{size:10}}, grid:{display:false}}
+            x:{type:'linear', min:-0.5, max:done.length-0.5,
+               afterBuildTicks: axis => { axis.ticks = done.map((_,i) => ({value:i})); },
+               ticks:{callback:(v)=>st(done[Math.round(v)]?.title??''), font:{size:10}, maxRotation:45, minRotation:45},
+               grid:{display:false}}
         }
     });
     document.getElementById('ratingsChart').style.height = '280px';
