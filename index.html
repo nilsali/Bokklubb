@@ -293,6 +293,49 @@
 </head>
 <body>
 
+<!-- PASSWORD GATE -->
+<div id="passwordGate" style="display:none;position:fixed;inset:0;z-index:9999;background:linear-gradient(135deg,#0f172a 0%,#1e293b 55%,#312e81 100%);display:flex;align-items:center;justify-content:center;">
+    <div style="background:white;border-radius:20px;padding:2.5rem 2rem;width:100%;max-width:360px;text-align:center;box-shadow:0 25px 60px rgba(0,0,0,0.4);">
+        <div style="font-size:2.5rem;margin-bottom:0.75rem">📚</div>
+        <h2 style="font-family:Georgia,serif;font-size:1.5rem;color:#0f172a;margin-bottom:0.25rem">Bokklubb</h2>
+        <p style="font-family:sans-serif;font-size:0.85rem;color:#64748b;margin-bottom:1.5rem">Skriv inn passord for å fortsette</p>
+        <input id="pwInput" type="password" placeholder="Passord" autocomplete="current-password"
+            style="width:100%;padding:0.75rem 1rem;border:1px solid #cbd5e1;border-radius:10px;font-size:1rem;font-family:sans-serif;outline:none;margin-bottom:0.75rem;box-sizing:border-box;"
+            onkeydown="if(event.key==='Enter')checkPw()">
+        <div id="pwError" style="font-family:sans-serif;font-size:0.82rem;color:#ef4444;min-height:1.2rem;margin-bottom:0.5rem"></div>
+        <button onclick="checkPw()"
+            style="width:100%;padding:0.75rem;background:#6366f1;color:white;border:none;border-radius:10px;font-size:1rem;font-family:sans-serif;font-weight:600;cursor:pointer;">
+            Logg inn
+        </button>
+    </div>
+</div>
+
+<script>
+(function(){
+    const PW = 'lapvona2022';
+    const gate = document.getElementById('passwordGate');
+    if (sessionStorage.getItem('bk_auth') === '1') {
+        gate.style.display = 'none';
+    } else {
+        gate.style.display = 'flex';
+        document.body.style.overflow = 'hidden';
+        setTimeout(() => document.getElementById('pwInput').focus(), 50);
+    }
+    window.checkPw = function() {
+        if (document.getElementById('pwInput').value === PW) {
+            sessionStorage.setItem('bk_auth', '1');
+            gate.style.display = 'none';
+            document.body.style.overflow = '';
+        } else {
+            const err = document.getElementById('pwError');
+            err.textContent = 'Feil passord – prøv igjen';
+            document.getElementById('pwInput').value = '';
+            document.getElementById('pwInput').focus();
+        }
+    };
+})();
+</script>
+
 <header>
     <h1>Bokklubb</h1>
     <div class="members">
