@@ -883,6 +883,7 @@ async function renderWorldMap(books) {
         }
 
         leafletGeoLayer = L.geoJSON(countries, {
+            renderer: L.canvas(),
             style(feature) {
                 const name = NUM_TO_NAME[+feature.id] || '';
                 return {
