@@ -829,83 +829,55 @@ function renderTimeline(books) {
 
 // ===================== WORLD MAP =====================
 let leafletMap = null;
-let leafletGeoLayer = null;
 
 async function renderWorldMap(books) {
-    const ISO_NAMES = {
-        'Norge':'Norway','Sør Afrika':'South Africa','Italia':'Italy','USA':'United States of America',
-        'Etiopia':'Ethiopia','Brasil':'Brazil','Danmark':'Denmark','Japan':'Japan',
-        'England':'United Kingdom','Russland':'Russia','Sør Korea':'South Korea',
-        'Ungarn':'Hungary','Frankrike':'France','Sverige':'Sweden','Finland':'Finland',
-        'Tyskland':'Germany','Spania':'Spain','Polen':'Poland','Kina':'China','India':'India',
-        'Australia':'Australia','Canada':'Canada','Mexico':'Mexico','Argentina':'Argentina',
-        'Colombia':'Colombia','Tyrkia':'Turkey','Iran':'Iran','Israel':'Israel',
+    const CENTROIDS = {
+        'Norge':[60.5,8.5],'Sverige':[62,15],'Danmark':[56,10],'Finland':[64,26],
+        'England':[55,-3],'Frankrike':[46,2],'Tyskland':[51,10],'Italia':[42,12],
+        'Spania':[40,-4],'Polen':[52,20],'Russland':[61,105],'Ungarn':[47,19],
+        'USA':[38,-97],'Canada':[56,-96],'Mexico':[23,-102],'Brasil':[-10,-55],
+        'Argentina':[-34,-64],'Colombia':[4,-72],'Chile':[-30,-71],'Peru':[-10,-76],
+        'Sør Afrika':[-29,25],'Nigeria':[10,8],'Etiopia':[9,40],'Kenya':[1,38],'Egypt':[27,30],
+        'Japan':[36,138],'Sør Korea':[36,128],'Kina':[35,103],'India':[20,77],
+        'Israel':[31,35],'Iran':[32,53],'Tyrkia':[39,35],
+        'Australia':[-25,134],'New Zealand':[-41,174],
+        'Danmark':[56,10],'Nederland':[52,5],'Belgia':[50,4],'Sveits':[47,8],
+        'Østerrike':[47,14],'Hellas':[39,22],'Portugal':[39,-8],'Irland':[53,-8],
     };
-    try {
-        const counts = {};
-        books.forEach(b => {
-            const n = ISO_NAMES[b.country];
-            if (n) counts[n] = (counts[n]||0)+1;
-        });
-        const maxCount = Math.max(...Object.values(counts), 1);
 
-        const world = await fetch('https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json')
-            .then(r => r.json());
-        const countries = topojson.feature(world, world.objects.countries);
+    const el = document.getElementById('worldMapChart');
+    if (!el) return;
 
-        const NUM_TO_NAME = {
-            840:'United States of America',826:'United Kingdom',276:'Germany',250:'France',
-            380:'Italy',724:'Spain',616:'Poland',643:'Russia',392:'Japan',410:'South Korea',
-            156:'China',356:'India',036:'Australia',124:'Canada',484:'Mexico',032:'Argentina',
-            170:'Colombia',792:'Turkey',364:'Iran',376:'Israel',578:'Norway',752:'Sweden',
-            208:'Denmark',246:'Finland',76:'Brazil',710:'South Africa',231:'Ethiopia',
-            348:'Hungary',203:'Czech Republic',040:'Austria',756:'Switzerland',528:'Netherlands',
-            056:'Belgium',372:'Ireland',300:'Greece',818:'Egypt',404:'Kenya',566:'Nigeria',
-            152:'Chile',604:'Peru',858:'Uruguay',
-        };
+    if (leafletMap) { leafletMap.remove(); leafletMap = null; }
 
-        const el = document.getElementById('worldMapChart');
-        if (!el) return;
+    leafletMap = L.map(el, {
+        zoomControl: true, scrollWheelZoom: false,
+        attributionControl: false, worldCopyJump: false,
+    }).setView([25, 15], 2);
 
-        if (leafletMap) { leafletMap.remove(); leafletMap = null; }
+    // Gray base tiles
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png', {
+        subdomains: 'abcd', maxZoom: 19
+    }).addTo(leafletMap);
 
-        leafletMap = L.map(el, {
-            zoomControl: true, scrollWheelZoom: false,
-            attributionControl: false, worldCopyJump: false,
-        }).setView([20, 10], 2);
+    const counts = {};
+    books.forEach(b => { counts[b.country] = (counts[b.country]||0)+1; });
+    const maxCount = Math.max(...Object.values(counts), 1);
 
-        function getColor(name) {
-            const c = counts[name] || 0;
-            if (!c) return '#e2e8f0';
-            const t = c / maxCount;
-            const opacity = 0.3 + t * 0.7;
-            return `rgba(99,102,241,${opacity.toFixed(2)})`;
-        }
-
-        leafletGeoLayer = L.geoJSON(countries, {
-            renderer: L.canvas(),
-            style(feature) {
-                const name = NUM_TO_NAME[+feature.id] || '';
-                return {
-                    fillColor: getColor(name),
-                    fillOpacity: 1,
-                    color: 'white',
-                    weight: 0.5,
-                };
-            },
-            onEachFeature(feature, layer) {
-                const name = NUM_TO_NAME[+feature.id] || '';
-                const c = counts[name] || 0;
-                const norName = Object.entries(ISO_NAMES).find(([,v])=>v===name)?.[0] || name;
-                if (c > 0) layer.bindTooltip(`${norName}: ${c} bok${c>1?'er':''}`, {sticky:true});
-            }
-        }).addTo(leafletMap);
-
-    } catch(e) {
-        console.error('World map failed:', e);
-        const el = document.getElementById('worldMapChart');
-        if (el) el.innerHTML = '<p style="text-align:center;color:#94a3b8;font-family:sans-serif;padding:2rem;font-size:0.85rem">Kartet kunne ikke lastes</p>';
-    }
+    Object.entries(counts).forEach(([country, count]) => {
+        const latlng = CENTROIDS[country];
+        if (!latlng) return;
+        const r = 8 + (count / maxCount) * 22;
+        const opacity = 0.5 + (count / maxCount) * 0.45;
+        L.circleMarker(latlng, {
+            radius: r,
+            fillColor: '#6366f1',
+            fillOpacity: opacity,
+            color: 'white',
+            weight: 1.5,
+        }).addTo(leafletMap)
+          .bindTooltip(`${country}: ${count} bok${count>1?'er':''}`, {sticky:true});
+    });
 }
 
 // authorGenders, mainCharGenders, nobelStatus populated by parseSheet2()
