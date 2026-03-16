@@ -1108,7 +1108,7 @@ function renderAll(books) {
         labels: gKeys,
         datasets:[{
             data: gKeys.map(k=>genderCount[k]),
-            backgroundColor:['rgba(59,130,246,0.8)','rgba(236,72,153,0.8)','rgba(156,163,175,0.8)'],
+            backgroundColor:['rgba(99,102,241,0.8)','rgba(20,184,166,0.8)','rgba(156,163,175,0.8)'],
             borderWidth:2, borderColor:'#fff'
         }]
     },{responsive:true,plugins:{legend:{position:'right',labels:{font:{size:13},padding:14}}}});
@@ -1124,18 +1124,18 @@ function renderAll(books) {
     makeChart('genderPickerChart','bar',{
         labels:['Lars','Nils Arne','Jardar'],
         datasets:[
-            {label:'Mann',   data:genderByPicker.map(g=>g.mann),   backgroundColor:'rgba(59,130,246,0.8)',  borderColor:'#3b82f6', borderWidth:1},
-            {label:'Kvinne', data:genderByPicker.map(g=>g.kvinne), backgroundColor:'rgba(236,72,153,0.8)',  borderColor:'#ec4899', borderWidth:1},
+            {label:'Mann',   data:genderByPicker.map(g=>g.mann),   backgroundColor:'rgba(99,102,241,0.8)',  borderColor:'#6366f1', borderWidth:1},
+            {label:'Kvinne', data:genderByPicker.map(g=>g.kvinne), backgroundColor:'rgba(20,184,166,0.8)',  borderColor:'#14b8a6', borderWidth:1},
         ]
     },{responsive:true,plugins:{legend:{position:'top'}},scales:{x:{stacked:true},y:{stacked:true,ticks:{stepSize:1}}}});
 
     // ---- KJØNNSFORDELING HOVEDPERSON ----
     const mcColorMap = {
-        'Mann':                     'rgba(59,130,246,0.8)',
-        'Kvinne':                   'rgba(236,72,153,0.8)',
-        'Flere, men overvekt menn': 'rgba(99,102,241,0.8)',
-        'Flere, men overvekt kvinner': 'rgba(244,114,182,0.8)',
-        'Ukjent':                   'rgba(156,163,175,0.8)',
+        'Mann':                        'rgba(99,102,241,0.8)',
+        'Kvinne':                      'rgba(20,184,166,0.8)',
+        'Flere, men overvekt menn':    'rgba(139,92,246,0.8)',
+        'Flere, men overvekt kvinner': 'rgba(45,212,191,0.8)',
+        'Ukjent':                      'rgba(156,163,175,0.8)',
     };
     const mcFallbackColors = ['rgba(251,146,60,0.8)','rgba(52,211,153,0.8)','rgba(251,191,36,0.8)'];
     const mainCharCount = {};
