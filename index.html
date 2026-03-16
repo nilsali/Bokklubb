@@ -1130,14 +1130,23 @@ function renderAll(books) {
     },{responsive:true,plugins:{legend:{position:'top'}},scales:{x:{stacked:true},y:{stacked:true,ticks:{stepSize:1}}}});
 
     // ---- KJØNNSFORDELING HOVEDPERSON ----
-    const mainCharCount = {Mann:0, Kvinne:0, Ukjent:0};
-    done.forEach(b => { const g = mainCharGenders[b.title] || 'Ukjent'; mainCharCount[g]++; });
+    const mcColorMap = {
+        'Mann':                     'rgba(59,130,246,0.8)',
+        'Kvinne':                   'rgba(236,72,153,0.8)',
+        'Flere, men overvekt menn': 'rgba(99,102,241,0.8)',
+        'Flere, men overvekt kvinner': 'rgba(244,114,182,0.8)',
+        'Ukjent':                   'rgba(156,163,175,0.8)',
+    };
+    const mcFallbackColors = ['rgba(251,146,60,0.8)','rgba(52,211,153,0.8)','rgba(251,191,36,0.8)'];
+    const mainCharCount = {};
+    done.forEach(b => { const g = mainCharGenders[b.title] || 'Ukjent'; mainCharCount[g] = (mainCharCount[g]||0) + 1; });
     const mcKeys = Object.keys(mainCharCount).filter(k => mainCharCount[k] > 0);
+    const mcColors = mcKeys.map((k,i) => mcColorMap[k] || mcFallbackColors[i % mcFallbackColors.length]);
     makeChart('genderMainCharChart','doughnut',{
         labels: mcKeys,
         datasets:[{
             data: mcKeys.map(k=>mainCharCount[k]),
-            backgroundColor:['rgba(59,130,246,0.8)','rgba(236,72,153,0.8)','rgba(156,163,175,0.8)'],
+            backgroundColor: mcColors,
             borderWidth:2, borderColor:'#fff'
         }]
     },{responsive:true,plugins:{legend:{position:'right',labels:{font:{size:13},padding:14}}}});
