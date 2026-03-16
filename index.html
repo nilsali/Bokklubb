@@ -959,7 +959,7 @@ function renderAll(books) {
     document.getElementById('statTotal').textContent    = done.length;
     document.getElementById('statAvg').textContent      = avgRating.toFixed(2);
     document.getElementById('statPages').textContent    = totalPages.toLocaleString('no');
-    document.getElementById('statAvgPages').textContent = Math.round(done.reduce((s,b)=>s+b.pages,0)/done.length);
+    document.getElementById('statAvgPages').textContent = Math.floor(done.reduce((s,b)=>s+b.pages,0)/done.length);
     document.getElementById('statCountries').textContent= countries.length;
 
     renderTable();
