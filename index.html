@@ -1,0 +1,1262 @@
+<!DOCTYPE html>
+<html lang="no">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bokklubb</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/topojson-client@3/dist/topojson-client.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-chart-geo@4.3.0/build/index.umd.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --bg: #f1f5f9;
+            --card: #ffffff;
+            --primary: #1e293b;
+            --primary-dark: #0f172a;
+            --accent: #6366f1;
+            --text: #0f172a;
+            --text-muted: #64748b;
+            --border: #cbd5e1;
+            --lars: #3b82f6;
+            --nilsarne: #10b981;
+            --jardar: #f59e0b;
+        }
+
+        body { font-family: 'Georgia', serif; background: var(--bg); color: var(--text); line-height: 1.6; }
+
+        /* ---- HEADER ---- */
+        header {
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 55%, #312e81 100%);
+            color: white;
+            padding: 4rem 2rem 3rem;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+        header::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.03'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+        }
+        header h1 { font-size: 3.5rem; letter-spacing: 0.08em; margin-bottom: 0.75rem; position: relative; }
+        header .subtitle { font-size: 1.1rem; opacity: 0.75; font-style: italic; letter-spacing: 0.1em; position: relative; }
+        header .members { display: flex; justify-content: center; gap: 2rem; margin-top: 1.5rem; position: relative; flex-wrap: wrap; }
+        .member-chip {
+            display: flex; align-items: center; gap: 0.5rem;
+            background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.25);
+            border-radius: 999px; padding: 0.4rem 1rem; font-family: sans-serif; font-size: 0.9rem;
+        }
+        .member-dot { width: 10px; height: 10px; border-radius: 50%; }
+
+        /* ---- STATUS BAR ---- */
+        #statusBar {
+            display: flex; align-items: center; justify-content: center; gap: 1rem;
+            padding: 0.6rem 1.5rem; font-family: sans-serif; font-size: 0.82rem;
+            background: #fef3e2; border-bottom: 1px solid #f5d9a8; color: #7c5c00;
+            flex-wrap: wrap;
+        }
+        #statusBar.ok   { background: #f0fdf4; border-color: #bbf7d0; color: #166534; }
+        #statusBar.err  { background: #fef2f2; border-color: #fecaca; color: #991b1b; }
+        #statusBar.hide { display: none; }
+
+        .status-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+        .dot-loading { background: #f59e0b; animation: pulse 1s infinite; }
+        .dot-ok      { background: #22c55e; }
+        .dot-err     { background: #ef4444; }
+        @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+        #refreshBtn {
+            background: none; border: 1px solid currentColor; border-radius: 6px;
+            padding: 0.2rem 0.7rem; cursor: pointer; font-family: sans-serif;
+            font-size: 0.8rem; color: inherit; transition: opacity 0.15s;
+        }
+        #refreshBtn:hover { opacity: 0.7; }
+        #refreshBtn:disabled { opacity: 0.4; cursor: default; }
+
+        /* ---- NAV ---- */
+        nav {
+            position: sticky; top: 0; background: white;
+            border-bottom: 2px solid var(--border); z-index: 100;
+            display: flex; justify-content: center;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+        }
+        nav a {
+            padding: 1rem 1.5rem; text-decoration: none; color: var(--text-muted);
+            font-family: sans-serif; font-size: 0.85rem; letter-spacing: 0.08em;
+            text-transform: uppercase; font-weight: 600;
+            border-bottom: 3px solid transparent; transition: all 0.2s;
+        }
+        nav a:hover { color: var(--primary); border-bottom-color: var(--primary); }
+
+        /* ---- SECTIONS ---- */
+        .section-wrap { max-width: 1400px; margin: 0 auto; padding: 3rem 2rem; }
+        .section-alt { background: #eef2ff; }
+        h2.section-title { font-size: 1.8rem; color: var(--primary); margin-bottom: 0.25rem; }
+        .section-divider { width: 60px; height: 3px; background: var(--accent); border-radius: 2px; margin-bottom: 2rem; }
+
+        /* ---- LOADING OVERLAY ---- */
+        #loadingOverlay {
+            display: flex; flex-direction: column; align-items: center;
+            justify-content: center; padding: 6rem 2rem; gap: 1.5rem;
+            font-family: sans-serif; color: var(--text-muted);
+        }
+        .spinner {
+            width: 40px; height: 40px; border: 3px solid var(--border);
+            border-top-color: var(--primary); border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* ---- STATS CARDS ---- */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 1rem; margin-bottom: 2.5rem;
+        }
+        @media (max-width: 900px) { .stats-grid { grid-template-columns: repeat(3,1fr); } }
+        @media (max-width: 500px) { .stats-grid { grid-template-columns: repeat(2,1fr); } }
+
+        .stat-card {
+            background: var(--card); border: 1px solid var(--border);
+            border-radius: 14px; padding: 1.5rem 1rem; text-align: center;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+            transition: transform 0.15s, box-shadow 0.15s;
+        }
+        .stat-card:hover { transform: translateY(-2px); box-shadow: 0 6px 16px rgba(0,0,0,0.08); }
+        .stat-card .value { font-size: 2.2rem; font-weight: bold; color: var(--primary); display: block; line-height: 1.1; }
+        .stat-card .label { font-size: 0.8rem; color: var(--text-muted); font-family: sans-serif; margin-top: 0.4rem; text-transform: uppercase; letter-spacing: 0.06em; }
+
+        /* ---- CONTROLS ---- */
+        .controls { display: flex; gap: 0.75rem; margin-bottom: 1.25rem; flex-wrap: wrap; }
+        .controls input, .controls select {
+            padding: 0.55rem 1rem; border: 1px solid var(--border);
+            border-radius: 8px; font-family: sans-serif; font-size: 0.9rem;
+            background: var(--card); color: var(--text); outline: none; transition: border-color 0.2s;
+        }
+        .controls input:focus, .controls select:focus { border-color: var(--primary); }
+        .controls input { flex: 1; min-width: 200px; }
+
+        /* ---- TABLE ---- */
+        .table-container { overflow-x: auto; border-radius: 14px; border: 1px solid var(--border); box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+        table { width: 100%; border-collapse: collapse; background: var(--card); font-size: 0.9rem; }
+        thead th {
+            background: var(--primary); color: white;
+            padding: 0.8rem 1rem; text-align: left; font-family: sans-serif;
+            font-size: 0.78rem; font-weight: 600; letter-spacing: 0.06em;
+            text-transform: uppercase; white-space: nowrap; cursor: pointer;
+            user-select: none; transition: background 0.15s;
+        }
+        thead th:hover { background: var(--primary-dark); }
+        tbody tr { border-bottom: 1px solid var(--border); transition: background 0.12s; }
+        tbody tr:last-child { border-bottom: none; }
+        tbody tr:hover { background: #f8fafc; }
+        tbody tr.upcoming { opacity: 0.55; font-style: italic; }
+        td { padding: 0.7rem 1rem; white-space: nowrap; }
+        td.title-cell { white-space: normal; min-width: 180px; font-weight: 500; }
+
+        .rating-dot {
+            display: inline-flex; align-items: center; justify-content: center;
+            width: 28px; height: 28px; border-radius: 50%;
+            font-weight: bold; font-size: 0.85rem;
+            background: #e2e8f0; color: #334155;
+        }
+
+        .avg-badge {
+            background: var(--primary); color: white;
+            padding: 0.2rem 0.65rem; border-radius: 20px;
+            font-size: 0.82rem; font-weight: bold; font-family: sans-serif;
+        }
+        .chosen-badge { padding: 0.2rem 0.65rem; border-radius: 20px; font-size: 0.8rem; font-family: sans-serif; font-weight: 600; }
+        .chosen-Lars     { background: #dbeafe; color: #1d4ed8; }
+        .chosen-NilsArne { background: #d1fae5; color: #065f46; }
+        .chosen-Jardar   { background: #fef3c7; color: #92400e; }
+
+        .upcoming-tag {
+            font-size: 0.75rem; background: #e5e7eb; color: #6b7280;
+            padding: 0.1rem 0.5rem; border-radius: 4px; font-family: sans-serif;
+            margin-left: 0.5rem; font-style: normal;
+        }
+
+        /* ---- CHARTS ---- */
+        .charts-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
+        @media (max-width: 768px) { .charts-grid { grid-template-columns: 1fr; } }
+        .chart-card {
+            background: var(--card); border: 1px solid var(--border);
+            border-radius: 14px; padding: 1.5rem;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+        }
+        .chart-card.wide { grid-column: 1 / -1; }
+        .chart-card h3 {
+            font-size: 0.8rem; color: var(--text-muted); font-family: sans-serif;
+            font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 1.25rem;
+        }
+
+        /* ---- PERSON CARDS ---- */
+        .person-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 1.5rem; }
+        @media (max-width: 700px) { .person-grid { grid-template-columns: 1fr; } }
+        .person-card {
+            background: var(--card); border: 1px solid var(--border);
+            border-radius: 14px; padding: 1.75rem;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+        }
+        .person-card h3 { font-size: 1.3rem; margin-bottom: 1.25rem; padding-bottom: 0.75rem; border-bottom: 3px solid; }
+        .person-card.lars h3     { border-color: var(--lars);     color: var(--lars); }
+        .person-card.nilsarne h3 { border-color: var(--nilsarne); color: var(--nilsarne); }
+        .person-card.jardar h3   { border-color: var(--jardar);   color: var(--jardar); }
+        .person-stat { display: flex; justify-content: space-between; align-items: center; padding: 0.5rem 0; font-size: 0.88rem; border-bottom: 1px solid var(--border); gap: 1rem; }
+        .person-stat:last-child { border-bottom: none; }
+        .person-stat .stat-label { color: var(--text-muted); font-family: sans-serif; }
+        .person-stat .stat-val   { font-weight: bold; color: var(--text); text-align: right; font-family: sans-serif; }
+
+        /* ---- INSIGHT CARDS ---- */
+        .insight-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px,1fr)); gap: 1rem; }
+        .insight-card {
+            background: var(--card); border: 1px solid var(--border);
+            border-radius: 14px; padding: 1.5rem;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+            transition: transform 0.15s, box-shadow 0.15s;
+        }
+        .insight-card:hover { transform: translateY(-2px); box-shadow: 0 6px 16px rgba(0,0,0,0.08); }
+        .insight-card .icon   { font-size: 1.75rem; margin-bottom: 0.75rem; }
+        .insight-card .ic-label { font-size: 0.75rem; color: var(--text-muted); font-family: sans-serif; text-transform: uppercase; letter-spacing: 0.07em; font-weight: 600; }
+        .insight-card .ic-value { font-size: 1.05rem; font-weight: bold; color: var(--primary); margin-top: 0.25rem; line-height: 1.3; }
+        .insight-card .ic-note  { font-size: 0.82rem; color: var(--text-muted); margin-top: 0.25rem; font-family: sans-serif; }
+
+        /* ---- TIMELINE ---- */
+        .tl-outer { overflow-x: auto; padding-bottom: 0.5rem; }
+        .tl-inner { position: relative; height: 270px; min-width: 860px; margin: 0 30px; }
+        .tl-axis  { position: absolute; left: 0; right: 0; top: 50%; height: 2px; background: #d1d5db; z-index: 0; }
+        .tl-book  { position: absolute; top: 50%; display: flex; align-items: center; z-index: 1; cursor: default; }
+        .tl-book.tl-above { flex-direction: column-reverse; transform: translate(-50%, -100%); height: 126px; }
+        .tl-book.tl-below { flex-direction: column;         transform: translateX(-50%);        height: 126px; }
+        .tl-title { font-size: 0.66rem; font-family: sans-serif; writing-mode: vertical-rl; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-height: 100px; color: var(--text); }
+        .tl-book.tl-above .tl-title { transform: rotate(180deg); }
+        .tl-connector { width: 1px; flex-grow: 1; background: #d1d5db; min-height: 6px; }
+        .tl-dot { width: 10px; height: 10px; border-radius: 50%; border: 2px solid white; box-shadow: 0 1px 4px rgba(0,0,0,0.25); flex-shrink: 0; }
+        .tl-decade { position: absolute; top: 50%; transform: translateX(-50%); z-index: 0; display: flex; flex-direction: column; align-items: center; }
+        .tl-dtick  { width: 1px; height: 10px; background: #9ca3af; }
+        .tl-dlabel { font-size: 0.65rem; font-family: sans-serif; color: #9ca3af; margin-top: 3px; white-space: nowrap; }
+        .tl-legend { display: flex; gap: 1.5rem; justify-content: center; margin-top: 0.75rem; font-family: sans-serif; font-size: 0.82rem; flex-wrap: wrap; }
+        .tl-legend-item { display: flex; align-items: center; gap: 0.4rem; }
+        .tl-legend-dot { width: 10px; height: 10px; border-radius: 50%; }
+        .nobel-badge { display: inline-block; background: #fbbf24; color: #78350f; font-size: 0.68rem; font-weight: 700; padding: 0.1rem 0.4rem; border-radius: 4px; font-family: sans-serif; margin-left: 0.4rem; vertical-align: middle; letter-spacing: 0.03em; }
+
+        footer { background: var(--primary-dark); color: rgba(255,255,255,0.6); text-align: center; padding: 2rem; font-family: sans-serif; font-size: 0.82rem; letter-spacing: 0.05em; }
+
+        /* ---- STAT TABLES ---- */
+        .stat-tables-3 { display: grid; grid-template-columns: repeat(3,1fr); gap: 1.5rem; margin-bottom: 1.5rem; }
+        .stat-tables-2 { display: grid; grid-template-columns: 1fr 1fr;      gap: 1.5rem; margin-bottom: 1.5rem; }
+        @media (max-width: 900px) { .stat-tables-3 { grid-template-columns: 1fr; } }
+        @media (max-width: 700px) { .stat-tables-2 { grid-template-columns: 1fr; } }
+
+        .stat-table-card {
+            background: var(--card); border: 1px solid var(--border);
+            border-radius: 14px; padding: 1.5rem;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+        }
+        .stat-table-card h3 {
+            font-size: 0.8rem; color: var(--text-muted); font-family: sans-serif;
+            font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 1rem;
+        }
+        .stattable { width: 100%; border-collapse: collapse; font-family: sans-serif; font-size: 0.85rem; }
+        .stattable thead th {
+            background: var(--primary); color: white;
+            padding: 0.5rem 0.75rem; text-align: right; font-size: 0.75rem;
+            font-weight: 600; letter-spacing: 0.04em; white-space: nowrap;
+            cursor: default;
+        }
+        .stattable thead th:first-child { text-align: left; }
+        .stattable tbody td {
+            padding: 0.5rem 0.75rem; text-align: right; border-bottom: 1px solid var(--border);
+            white-space: nowrap; font-variant-numeric: tabular-nums;
+        }
+        .stattable tbody td:first-child { text-align: left; font-weight: 600; }
+        .stattable tbody tr:last-child td { border-bottom: none; }
+        .stattable tbody tr:hover td { background: #f8fafc; }
+        .stattable .row-total td { color: var(--primary); font-style: italic; }
+        .stattable .row-lars     td:first-child { color: var(--lars); }
+        .stattable .row-nilsarne td:first-child { color: var(--nilsarne); }
+        .stattable .row-jardar   td:first-child { color: var(--jardar); }
+        .diff-pos { color: #16a34a; font-weight: 700; }
+        .diff-neg { color: #dc2626; font-weight: 700; }
+        .diff-zero { color: var(--text-muted); }
+
+        @media (max-width: 600px) {
+            header h1 { font-size: 2.2rem; }
+            header .members { flex-direction: column; align-items: center; gap: 0.5rem; }
+            nav a { padding: 0.75rem 0.75rem; font-size: 0.75rem; }
+        }
+    </style>
+</head>
+<body>
+
+<header>
+    <h1>Bokklubb</h1>
+    <div class="members">
+        <div class="member-chip"><span class="member-dot" style="background:#3b82f6"></span>Lars</div>
+        <div class="member-chip"><span class="member-dot" style="background:#10b981"></span>Nils Arne</div>
+        <div class="member-chip"><span class="member-dot" style="background:#f59e0b"></span>Jardar</div>
+    </div>
+</header>
+
+<div id="statusBar" class="hide">
+    <span class="status-dot" id="statusDot"></span>
+    <span id="statusMsg"></span>
+    <button id="refreshBtn" onclick="loadData()">Oppdater</button>
+</div>
+
+<nav>
+    <a href="#boker">Bøker</a>
+    <a href="#statistikk">Statistikk</a>
+    <a href="#personer">Personer</a>
+    <a href="#innsikt">Innsikt</a>
+</nav>
+
+<!-- BOOKS -->
+<div id="boker" class="section-wrap">
+    <h2 class="section-title">Bøker</h2>
+    <div class="section-divider"></div>
+
+    <div id="loadingOverlay">
+        <div class="spinner"></div>
+        <span style="font-family:sans-serif">Laster data fra Google Sheets…</span>
+    </div>
+
+    <div id="mainContent" style="display:none">
+        <div class="stats-grid">
+            <div class="stat-card"><span class="value" id="statTotal">–</span><span class="label">Bøker lest</span></div>
+            <div class="stat-card"><span class="value" id="statAvg">–</span><span class="label">Snittkarakter</span></div>
+            <div class="stat-card"><span class="value" id="statPages">–</span><span class="label">Totalt sider</span></div>
+            <div class="stat-card"><span class="value" id="statAvgPages">–</span><span class="label">Sider per bok</span></div>
+            <div class="stat-card"><span class="value" id="statCountries">–</span><span class="label">Ulike land</span></div>
+        </div>
+
+        <div class="controls">
+            <input type="text" id="searchInput" placeholder="Søk på tittel, forfatter, land…">
+            <select id="chosenByFilter">
+                <option value="">Alle velgere</option>
+                <option value="Lars">Lars</option>
+                <option value="Nils Arne">Nils Arne</option>
+                <option value="Jardar">Jardar</option>
+            </select>
+        </div>
+
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th onclick="sortTable('id')"># <span id="sort-id"></span></th>
+                        <th onclick="sortTable('title')">Tittel <span id="sort-title"></span></th>
+                        <th onclick="sortTable('author')">Forfatter <span id="sort-author"></span></th>
+                        <th onclick="sortTable('year')">År <span id="sort-year"></span></th>
+                        <th onclick="sortTable('country')">Land <span id="sort-country"></span></th>
+                        <th onclick="sortTable('lars')"    style="text-align:center">Lars <span id="sort-lars"></span></th>
+                        <th onclick="sortTable('nilsarne')" style="text-align:center">Nils Arne <span id="sort-nilsarne"></span></th>
+                        <th onclick="sortTable('jardar')"  style="text-align:center">Jardar <span id="sort-jardar"></span></th>
+                        <th onclick="sortTable('avg')" style="text-align:center">Snitt <span id="sort-avg"></span></th>
+                        <th onclick="sortTable('pages')">Sider <span id="sort-pages"></span></th>
+                        <th onclick="sortTable('chosenBy')">Valgt av <span id="sort-chosenBy"></span></th>
+                        <th onclick="sortTable('goodreads')">Goodreads <span id="sort-goodreads"></span></th>
+                    </tr>
+                </thead>
+                <tbody id="booksBody"></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- STATISTICS -->
+<div id="statistikk" class="section-alt">
+    <div class="section-wrap">
+        <h2 class="section-title">Statistikk</h2>
+        <div class="section-divider"></div>
+
+        <!-- Ratings chart full width -->
+        <div class="chart-card" style="margin-bottom:1.5rem">
+            <h3>Karakterer per bok — Lars, Nils Arne og Jardar</h3>
+            <div style="overflow-x:auto;">
+                <div id="ratingsChartWrap" style="min-width:100%">
+                    <canvas id="ratingsChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- 3 small rating tables -->
+        <div class="stat-tables-3">
+            <div class="stat-table-card">
+                <h3>Rating gitt</h3>
+                <table class="stattable" id="tRatingGitt">
+                    <thead><tr><th>Person</th><th>Gjennomsnitt</th><th>Standardavvik</th></tr></thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+            <div class="stat-table-card">
+                <h3>Rating til bøker valgt av</h3>
+                <table class="stattable" id="tRatingValgt">
+                    <thead><tr><th>Person</th><th>Gjennomsnitt</th><th>Standardavvik</th></tr></thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+            <div class="stat-table-card">
+                <h3>Selvvalgte vs andres bøker</h3>
+                <table class="stattable" id="tSelvValgt">
+                    <thead><tr><th></th><th>Selvvalgte</th><th>Andres</th><th>Diff</th></tr></thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Sidetall + Årstall tables -->
+        <div class="stat-tables-2">
+            <div class="stat-table-card">
+                <h3>Sidetall</h3>
+                <table class="stattable" id="tSidetall">
+                    <thead><tr><th>Bok valgt av</th><th>Gjennomsnitt</th><th>Min</th><th>Max</th><th>Stdavvik</th><th>Forv. min</th><th>Forv. max</th></tr></thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+            <div class="stat-table-card">
+                <h3>Årstall</h3>
+                <table class="stattable" id="tAarstall">
+                    <thead><tr><th>Bok valgt av</th><th>Gjennomsnitt</th><th>Min</th><th>Max</th><th>Stdavvik</th><th>Forv. min</th><th>Forv. max</th></tr></thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Line chart: karakterutvikling -->
+        <div class="chart-card" style="margin-bottom:1.5rem">
+            <h3>Karakterutvikling</h3>
+            <canvas id="lineChart" height="80"></canvas>
+        </div>
+
+        <!-- Vår vurdering vs GoodReads -->
+        <div class="chart-card" style="margin-bottom:1.5rem">
+            <h3>Vår vurdering vs. GoodReads</h3>
+            <canvas id="vsGoodreadsChart" height="90"></canvas>
+        </div>
+
+        <!-- Diff chart -->
+        <div class="chart-card" style="margin-bottom:1.5rem">
+            <h3>Diff (Vår vurdering − GoodReads)</h3>
+            <canvas id="diffChart" height="70"></canvas>
+        </div>
+
+        <!-- 2x2 summary charts -->
+        <div class="charts-grid" style="margin-bottom:1.5rem">
+            <div class="chart-card"><h3>Snittkarakter gitt per person</h3><canvas id="personAvgChart"></canvas></div>
+            <div class="chart-card"><h3>Snittkarakter for bøker valgt av</h3><canvas id="chosenByChart"></canvas></div>
+            <div class="chart-card"><h3>Selvvalgte vs andres bøker</h3><canvas id="selfVsOthersChart"></canvas></div>
+            <div class="chart-card"><h3>Land representert</h3><canvas id="countriesChart"></canvas></div>
+        </div>
+
+        <!-- Tidslinje bokutgivelse -->
+        <div class="chart-card" style="margin-bottom:1.5rem">
+            <h3>Tidslinje bokutgivelse</h3>
+            <div id="timelineContainer"></div>
+        </div>
+
+        <!-- Verdenskart -->
+        <div class="chart-card" style="margin-bottom:1.5rem">
+            <h3>Verdenskart — bøker per land</h3>
+            <canvas id="worldMapChart" height="45"></canvas>
+        </div>
+
+        <!-- Kjønnsfordeling -->
+        <div class="charts-grid" style="grid-template-columns:1fr 1fr 1fr">
+            <div class="chart-card"><h3>Kjønnsfordeling forfattere</h3><canvas id="genderAuthorsChart"></canvas></div>
+            <div class="chart-card"><h3>Kjønnsfordeling bøker valgt av</h3><canvas id="genderPickerChart"></canvas></div>
+            <div class="chart-card"><h3>Kjønnsfordeling hovedperson</h3><canvas id="genderMainCharChart"></canvas></div>
+        </div>
+    </div>
+</div>
+
+<!-- PEOPLE -->
+<div id="personer" class="section-wrap">
+    <h2 class="section-title">Per person</h2>
+    <div class="section-divider"></div>
+    <div class="person-grid">
+        <div class="person-card lars">  <h3>Lars</h3>      <div id="larsStats"></div></div>
+        <div class="person-card nilsarne"><h3>Nils Arne</h3><div id="nilsarneStats"></div></div>
+        <div class="person-card jardar"><h3>Jardar</h3>    <div id="jardarStats"></div></div>
+    </div>
+</div>
+
+<!-- INSIGHTS -->
+<div id="innsikt" class="section-alt">
+    <div class="section-wrap">
+        <h2 class="section-title">Innsikt</h2>
+        <div class="section-divider"></div>
+        <div class="insight-grid" id="insightGrid"></div>
+    </div>
+</div>
+
+<footer>Bokklubb &mdash; Lars &bull; Nils Arne &bull; Jardar</footer>
+
+<script>
+// ===================== CONFIG =====================
+const SHEET_ID   = '1IxWjnnnNi3kA69wicaaOHLGrS9mwDvUJ1LIyov1T5VA';
+const CSV_URL    = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv`;
+const SHEET2_NAME = 'Kjønn på forfatter og hovedkarakter + Nobelstatus';
+const SHEET2_URL  = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&sheet=${encodeURIComponent(SHEET2_NAME)}`;
+
+// ===================== CSV PARSER =====================
+function parseCSV(text) {
+    const rows = [];
+    let row = [], field = '', inQ = false;
+    for (let i = 0; i < text.length; i++) {
+        const c = text[i];
+        if (inQ) {
+            if (c === '"' && text[i+1] === '"') { field += '"'; i++; }
+            else if (c === '"') { inQ = false; }
+            else { field += c; }
+        } else {
+            if (c === '"') { inQ = true; }
+            else if (c === ',') { row.push(field.trim()); field = ''; }
+            else if (c === '\n' || (c === '\r' && text[i+1] === '\n')) {
+                if (c === '\r') i++;
+                row.push(field.trim()); field = '';
+                rows.push(row); row = [];
+            } else { field += c; }
+        }
+    }
+    if (field || row.length) { row.push(field.trim()); rows.push(row); }
+    return rows;
+}
+
+function csvToBooks(rows) {
+    const books = [];
+    // Row 0 = headers, rows 1+ = data
+    for (let i = 1; i < rows.length; i++) {
+        const r = rows[i];
+        const rawId = r[0];
+        if (!rawId || !/^\d+$/.test(rawId.trim())) continue;
+
+        const num = s => {
+            if (!s || s === '' || s === 'N/A') return null;
+            const n = parseFloat(s.replace(',', '.'));
+            return isNaN(n) ? null : n;
+        };
+
+        const lars     = num(r[5]);
+        const nilsarne = num(r[6]);
+        const jardar   = num(r[7]);
+        const avg      = num(r[8]);
+
+        books.push({
+            id:           parseInt(rawId),
+            title:        r[1] || '',
+            year:         parseInt(r[2]) || 0,
+            author:       r[3] || '',
+            country:      r[4] || '',
+            lars,
+            nilsarne,
+            jardar,
+            avg,
+            dateFinished: r[9]  || null,
+            weeks:        num(r[10]),
+            pages:        parseInt(r[12]) || 0,
+            chosenBy:     r[13] || '',
+            goodreads:    num(r[14]),
+            upcoming:     lars === null && nilsarne === null && jardar === null,
+        });
+    }
+    return books;
+}
+
+// ===================== SHEET 2 PARSER =====================
+function parseSheet2(rows) {
+    if (rows.length < 2) return;
+    const headers = rows[0].map(h => h.trim());
+    console.log('[Sheet2] headers:', headers);
+    const idx = needle => headers.findIndex(h => h.toLowerCase().includes(needle.toLowerCase()));
+
+    const cForfatter  = idx('forfatter');
+    const cKjonn      = headers.findIndex(h => h.trim().toLowerCase() === 'kjønn');
+    const cBok        = idx('bok');
+    const cKjonnHoved = idx('kjønn hovedperson');
+    const cNobel      = idx('nobel');
+    console.log('[Sheet2] cols → forfatter:', cForfatter, 'kjønn:', cKjonn, 'bok:', cBok, 'kjønn hovedperson:', cKjonnHoved, 'nobel:', cNobel);
+    console.log('[Sheet2] first data row:', rows[1]);
+
+    for (let i = 1; i < rows.length; i++) {
+        const r = rows[i];
+        const author = r[cForfatter]?.trim();
+        if (author) {
+            if (cKjonn >= 0 && r[cKjonn])
+                authorGenders[author] = r[cKjonn].trim();
+            if (cNobel >= 0)
+                nobelStatus[author] = ['ja','yes','1','true'].includes((r[cNobel]||'').trim().toLowerCase());
+        }
+        const bok = r[cBok]?.trim();
+        if (bok && cKjonnHoved >= 0 && r[cKjonnHoved])
+            mainCharGenders[bok] = r[cKjonnHoved].trim();
+    }
+}
+
+// ===================== STATUS BAR =====================
+function setStatus(state, msg) {
+    const bar  = document.getElementById('statusBar');
+    const dot  = document.getElementById('statusDot');
+    const text = document.getElementById('statusMsg');
+    const btn  = document.getElementById('refreshBtn');
+
+    bar.className = state === 'hide' ? 'hide' : state;
+    dot.className = 'status-dot dot-' + state;
+    text.textContent = msg;
+    btn.disabled = state === 'loading';
+}
+
+// ===================== CHARTS (stored so we can destroy on refresh) =====================
+// ===================== GLOBAL HELPERS =====================
+const gMean  = arr => arr.reduce((s,x)=>s+x,0)/arr.length;
+const gSSD   = arr => { if(arr.length<2) return 0; const m=gMean(arr); return Math.sqrt(arr.reduce((s,x)=>s+(x-m)**2,0)/(arr.length-1)); };
+
+// ===================== ERROR BARS PLUGIN =====================
+Chart.register({
+    id: 'errorBars',
+    afterDatasetsDraw(chart) {
+        const { ctx, scales } = chart;
+        chart.data.datasets.forEach((ds, di) => {
+            if (!ds.errorBars) return;
+            const meta = chart.getDatasetMeta(di);
+            ds.errorBars.forEach((eb, j) => {
+                if (!eb) return;
+                const bar = meta.data[j];
+                if (!bar) return;
+                const x = bar.x;
+                const yMin = scales.y.getPixelForValue(Math.max(eb.min, chart.scales.y.min ?? -Infinity));
+                const yMax = scales.y.getPixelForValue(Math.min(eb.max, chart.scales.y.max ??  Infinity));
+                const w = 5;
+                ctx.save();
+                ctx.strokeStyle = 'rgba(0,0,0,0.45)';
+                ctx.lineWidth = 1.5;
+                ctx.beginPath();
+                ctx.moveTo(x, yMin); ctx.lineTo(x, yMax);
+                ctx.moveTo(x-w, yMin); ctx.lineTo(x+w, yMin);
+                ctx.moveTo(x-w, yMax); ctx.lineTo(x+w, yMax);
+                ctx.stroke();
+                ctx.restore();
+            });
+        });
+    }
+});
+
+// Module-level metadata from sheet 2
+let authorGenders   = {};
+let mainCharGenders = {};
+let nobelStatus     = {};
+
+const chartInstances = {};
+function makeChart(id, type, data, options) {
+    if (chartInstances[id]) chartInstances[id].destroy();
+    chartInstances[id] = new Chart(document.getElementById(id).getContext('2d'), { type, data, options });
+}
+
+// ===================== RENDER =====================
+let allBooks = [];
+let sortKey = 'id', sortDir = 1, filterText = '', filterChosenBy = '';
+
+function ratingDot(r) {
+    if (r === null) return '<span style="color:#ccc;font-family:sans-serif">–</span>';
+    return `<span class="rating-dot">${r}</span>`;
+}
+function avgColor(v) {
+    // Map 1–5 to hue 0 (red) → 120 (green) via HSL
+    const hue = Math.round(((v - 1) / 4) * 120);
+    return `hsl(${hue}, 70%, 40%)`;
+}
+function chosenBadge(person) {
+    const cls = person.replace(' ', '');
+    return `<span class="chosen-badge chosen-${cls}">${person}</span>`;
+}
+
+function renderTable() {
+    let data = [...allBooks];
+    if (filterText) {
+        const q = filterText.toLowerCase();
+        data = data.filter(b =>
+            b.title.toLowerCase().includes(q) ||
+            b.author.toLowerCase().includes(q) ||
+            b.country.toLowerCase().includes(q)
+        );
+    }
+    if (filterChosenBy) data = data.filter(b => b.chosenBy === filterChosenBy);
+
+    data.sort((a, b) => {
+        let av = a[sortKey], bv = b[sortKey];
+        if (av === null) av = sortDir > 0 ?  Infinity : -Infinity;
+        if (bv === null) bv = sortDir > 0 ?  Infinity : -Infinity;
+        if (typeof av === 'string') return av.localeCompare(bv, 'no') * sortDir;
+        return (av - bv) * sortDir;
+    });
+
+    document.getElementById('booksBody').innerHTML = data.map(b => `
+        <tr class="${b.upcoming ? 'upcoming' : ''}">
+            <td style="font-family:sans-serif;color:var(--text-muted);font-size:0.85rem">${b.id}</td>
+            <td class="title-cell">${b.title}${b.upcoming ? '<span class="upcoming-tag">Neste</span>' : ''}</td>
+            <td>${b.author}${nobelStatus[b.author] ? '<span class="nobel-badge">Nobel</span>' : ''}</td>
+            <td style="font-family:sans-serif">${b.year}</td>
+            <td style="font-family:sans-serif;font-size:0.85rem">${b.country}</td>
+            <td style="text-align:center">${ratingDot(b.lars)}</td>
+            <td style="text-align:center">${ratingDot(b.nilsarne)}</td>
+            <td style="text-align:center">${ratingDot(b.jardar)}</td>
+            <td style="text-align:center">${b.avg !== null ? `<span class="avg-badge" style="background:${avgColor(b.avg)}">${b.avg.toFixed(2)}</span>` : '–'}</td>
+            <td style="font-family:sans-serif">${b.pages}</td>
+            <td>${chosenBadge(b.chosenBy)}</td>
+            <td style="font-family:sans-serif;color:var(--text-muted);font-size:0.85rem">${b.goodreads ?? '–'}</td>
+        </tr>
+    `).join('');
+
+    ['id','title','author','year','country','lars','nilsarne','jardar','avg','pages','chosenBy','goodreads'].forEach(k => {
+        const el = document.getElementById('sort-' + k);
+        if (el) el.textContent = sortKey === k ? (sortDir > 0 ? '↑' : '↓') : '';
+    });
+}
+
+function sortTable(key) {
+    if (sortKey === key) sortDir *= -1;
+    else { sortKey = key; sortDir = 1; }
+    renderTable();
+}
+
+// ===================== TIMELINE =====================
+function renderTimeline(books) {
+    const PC = { 'Lars':'#3b82f6', 'Nils Arne':'#10b981', 'Jardar':'#f59e0b' };
+    const sorted = [...books].sort((a, b) => a.year - b.year);
+    const minY = 1790, maxY = 2040, range = maxY - minY;
+    const pct = y => ((y - minY) / range * 100).toFixed(2);
+    const decades = [1800, 1850, 1900, 1950, 2000];
+
+    // Alternate above/below; handle same-year pairs by forcing opposite sides
+    const sides = [];
+    let lastSide = 'below';
+    sorted.forEach((b, i) => {
+        const prev = sorted[i-1];
+        // If same year as previous, force opposite side; otherwise alternate
+        if (prev && b.year === prev.year) {
+            sides.push(lastSide === 'above' ? 'below' : 'above');
+        } else {
+            lastSide = lastSide === 'above' ? 'below' : 'above';
+            sides.push(lastSide);
+        }
+        lastSide = sides[i];
+    });
+
+    document.getElementById('timelineContainer').innerHTML = `
+        <div class="tl-outer">
+            <div class="tl-inner">
+                <div class="tl-axis"></div>
+                ${decades.map(y => `
+                    <div class="tl-decade" style="left:${pct(y)}%">
+                        <div class="tl-dtick"></div>
+                        <div class="tl-dlabel">${y}</div>
+                    </div>`).join('')}
+                ${sorted.map((b, i) => `
+                    <div class="tl-book tl-${sides[i]}" style="left:${pct(b.year)}%" title="${b.title} (${b.year}) — valgt av ${b.chosenBy}">
+                        <div class="tl-title">${b.title}</div>
+                        <div class="tl-connector"></div>
+                        <div class="tl-dot" style="background:${PC[b.chosenBy]||'#888'}"></div>
+                    </div>`).join('')}
+            </div>
+            <div class="tl-legend">
+                ${Object.entries(PC).map(([name, color]) => `
+                    <div class="tl-legend-item">
+                        <div class="tl-legend-dot" style="background:${color}"></div>
+                        <span>${name}</span>
+                    </div>`).join('')}
+            </div>
+        </div>`;
+}
+
+// ===================== WORLD MAP =====================
+async function renderWorldMap(books) {
+    const CODES = {
+        'Norge':578,'Sør Afrika':710,'Italia':380,'USA':840,
+        'Etiopia':231,'Brasil':76,'Danmark':208,'Japan':392,
+        'England':826,'Russland':643,'Sør Korea':410,'Ungarn':348,'Frankrike':250
+    };
+    try {
+        const world = await fetch('https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json').then(r=>r.json());
+        const topoLib = (typeof topojson !== 'undefined') ? topojson : ChartGeo.topojson;
+        const countries = topoLib.feature(world, world.objects.countries).features;
+        const counts = {};
+        books.forEach(b => { const c=CODES[b.country]; if(c) counts[c]=(counts[c]||0)+1; });
+        const maxCount = Math.max(...Object.values(counts), 1);
+        if (chartInstances['worldMapChart']) chartInstances['worldMapChart'].destroy();
+        chartInstances['worldMapChart'] = new Chart(document.getElementById('worldMapChart'), {
+            type: 'choropleth',
+            data: {
+                labels: countries.map(d => d.id),
+                datasets: [{
+                    label: 'Bøker',
+                    data: countries.map(d => ({ feature: d, value: counts[+d.id] || 0 })),
+                    backgroundColor(ctx) {
+                        const v = ctx.raw?.value;
+                        if (!v) return '#e2e8f0';
+                        const t = v / maxCount;
+                        return `rgba(99,102,241,${0.25 + t * 0.75})`;
+                    },
+                    borderColor: 'rgba(255,255,255,0.6)',
+                    borderWidth: 0.5,
+                }]
+            },
+            options: {
+                showOutline: false,
+                showGraticule: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: { callbacks: {
+                        title: ()=>'',
+                        label: ctx => {
+                            if (!ctx.raw?.value) return null;
+                            const name = Object.entries(CODES).find(([,v])=>v===+ctx.raw.feature.id)?.[0]||'';
+                            return `${name}: ${ctx.raw.value} bok${ctx.raw.value>1?'er':''}`;
+                        }
+                    }}
+                },
+                scales: {
+                    projection: { axis:'x', projection:'naturalEarth1' },
+                    color: { display: false }
+                }
+            }
+        });
+    } catch(e) {
+        console.error('World map failed to load:', e);
+        const el = document.getElementById('worldMapChart');
+        if (el) el.insertAdjacentHTML('afterend','<p style="text-align:center;color:#94a3b8;font-family:sans-serif;padding:1rem;font-size:0.85rem">Kartet kunne ikke lastes</p>');
+    }
+}
+
+// authorGenders, mainCharGenders, nobelStatus populated by parseSheet2()
+
+// ===================== STAT TABLES =====================
+function renderStatTables(books) {
+    const done = books.filter(b => !b.upcoming);
+    const people = [
+        { name:'Lars',      key:'lars'     },
+        { name:'Nils Arne', key:'nilsarne' },
+        { name:'Jardar',    key:'jardar'   },
+    ];
+    const rowClass = name => name === 'Lars' ? 'row-lars' : name === 'Nils Arne' ? 'row-nilsarne' : 'row-jardar';
+
+    const mean = arr => arr.reduce((s,x)=>s+x,0)/arr.length;
+    const sampleSD = arr => {
+        if (arr.length < 2) return 0;
+        const m = mean(arr);
+        return Math.sqrt(arr.reduce((s,x)=>s+(x-m)**2,0)/(arr.length-1));
+    };
+    const f2 = x => x.toFixed(2);
+
+    // Table 1: Rating gitt — each person's avg + stddev of their own ratings
+    document.querySelector('#tRatingGitt tbody').innerHTML = people.map(p => {
+        const rs = done.map(b => b[p.key]);
+        return `<tr class="${rowClass(p.name)}">
+            <td>${p.name}</td><td>${f2(mean(rs))}</td><td>${f2(sampleSD(rs))}</td>
+        </tr>`;
+    }).join('');
+
+    // Table 2: Rating til bøker valgt av — avg group rating + stddev for each picker's books
+    document.querySelector('#tRatingValgt tbody').innerHTML = people.map(p => {
+        const avgs = done.filter(b => b.chosenBy === p.name).map(b => b.avg);
+        return `<tr class="${rowClass(p.name)}">
+            <td>${p.name}</td><td>${f2(mean(avgs))}</td><td>${f2(sampleSD(avgs))}</td>
+        </tr>`;
+    }).join('');
+
+    // Table 3: Selvvalgte vs andres — each person's own rating of self-chosen vs others
+    document.querySelector('#tSelvValgt tbody').innerHTML = people.map(p => {
+        const selfR  = done.filter(b => b.chosenBy === p.name).map(b => b[p.key]);
+        const otherR = done.filter(b => b.chosenBy !== p.name).map(b => b[p.key]);
+        const s = mean(selfR), o = mean(otherR), d = s - o;
+        const diffCls = d > 0.005 ? 'diff-pos' : d < -0.005 ? 'diff-neg' : 'diff-zero';
+        const sign = d >= 0 ? '+' : '−';
+        return `<tr class="${rowClass(p.name)}">
+            <td>${p.name}</td><td>${f2(s)}</td><td>${f2(o)}</td>
+            <td class="${diffCls}">${sign}${f2(Math.abs(d))}</td>
+        </tr>`;
+    }).join('');
+
+    // Table 4: Sidetall — ALL books (incl. upcoming), total + per picker
+    const buildRangeRows = (getValues, labelTotal, isInt) => {
+        const fmt = x => isInt ? Math.round(x) : f2(x);
+        const allVals = books.flatMap(getValues);
+        const totalMean = mean(allVals), totalSD = sampleSD(allVals);
+        const rows = [
+            `<tr class="row-total"><td>${labelTotal}</td><td>${fmt(totalMean)}</td>
+             <td>${Math.min(...allVals)}</td><td>${Math.max(...allVals)}</td>
+             <td>${fmt(totalSD)}</td>
+             <td>${fmt(totalMean - totalSD)}</td><td>${fmt(totalMean + totalSD)}</td></tr>`
+        ];
+        people.forEach(p => {
+            const vals = books.filter(b => b.chosenBy === p.name).flatMap(getValues);
+            const m = mean(vals), sd = sampleSD(vals);
+            rows.push(`<tr class="${rowClass(p.name)}">
+                <td>${p.name}</td><td>${fmt(m)}</td>
+                <td>${Math.min(...vals)}</td><td>${Math.max(...vals)}</td>
+                <td>${fmt(sd)}</td>
+                <td>${fmt(m - sd)}</td><td>${fmt(m + sd)}</td>
+            </tr>`);
+        });
+        return rows.join('');
+    };
+
+    document.querySelector('#tSidetall tbody').innerHTML  = buildRangeRows(b => [b.pages], 'Gjennomsnitt', true);
+    document.querySelector('#tAarstall tbody').innerHTML  = buildRangeRows(b => [b.year],  'Totalt',       true);
+}
+
+function renderAll(books) {
+    allBooks = books;
+    const done = books.filter(b => !b.upcoming);
+
+    // Stats cards
+    const totalPages = books.reduce((s, b) => s + b.pages, 0);
+    const avgRating  = done.reduce((s, b) => s + b.avg, 0) / done.length;
+    const countries  = [...new Set(done.map(b => b.country))];
+    document.getElementById('statTotal').textContent    = done.length;
+    document.getElementById('statAvg').textContent      = avgRating.toFixed(2);
+    document.getElementById('statPages').textContent    = totalPages.toLocaleString('no');
+    document.getElementById('statAvgPages').textContent = Math.round(done.reduce((s,b)=>s+b.pages,0)/done.length);
+    document.getElementById('statCountries').textContent= countries.length;
+
+    renderTable();
+    renderStatTables(books);
+    renderWorldMap(books);
+
+    // ---- CHARTS ----
+    const st = t => t.length > 20 ? t.slice(0,18)+'…' : t;
+    const LC='rgba(59,130,246,0.75)', NC='rgba(16,185,129,0.75)', JC='rgba(245,158,11,0.75)';
+    const LB='#3b82f6', NB='#10b981', JB='#f59e0b';
+    const scaleY = (mn,mx) => ({ y: { min: mn, max: mx, ticks: { stepSize: 0.5 } } });
+
+    // Calculate horizontal jitter offsets when ratings overlap
+    const jitter = done.map(b => {
+        const vals = [b.lars, b.nilsarne, b.jardar];
+        const off = [0, 0, 0];
+        const groups = {};
+        vals.forEach((v, i) => { if (v !== null) { if (!groups[v]) groups[v] = []; groups[v].push(i); } });
+        Object.values(groups).forEach(g => {
+            if (g.length === 2) { off[g[0]] = -0.18; off[g[1]] = 0.18; }
+            else if (g.length === 3) { off[g[0]] = -0.22; off[g[1]] = 0; off[g[2]] = 0.22; }
+        });
+        return off;
+    });
+
+    const PX_PER_BOOK = 55;
+    document.getElementById('ratingsChartWrap').style.width = Math.max(done.length * PX_PER_BOOK, 600) + 'px';
+
+    makeChart('ratingsChart','bar',{
+        labels: done.map(b => st(b.title)),
+        datasets:[
+            {
+                type:'bar', label:'Gjennomsnitt',
+                data: done.map((b,i)=>({x:i, y:b.avg})),
+                backgroundColor:'rgba(99,102,241,0.25)', borderColor:'rgba(99,102,241,0.6)', borderWidth:1,
+                barThickness: 32, order:2
+            },
+            {
+                type:'scatter', label:'Lars',
+                data: done.map((b,i)=>({x:i + jitter[i][0], y:b.lars})),
+                backgroundColor:LB, pointRadius:5, pointHoverRadius:7, order:1
+            },
+            {
+                type:'scatter', label:'Nils Arne',
+                data: done.map((b,i)=>({x:i + jitter[i][1], y:b.nilsarne})),
+                backgroundColor:NB, pointRadius:5, pointHoverRadius:7, order:1
+            },
+            {
+                type:'scatter', label:'Jardar',
+                data: done.map((b,i)=>({x:i + jitter[i][2], y:b.jardar})),
+                backgroundColor:JB, pointRadius:5, pointHoverRadius:7, order:1
+            },
+        ]
+    },{
+        responsive:true,
+        maintainAspectRatio: false,
+        plugins:{legend:{position:'top'}},
+        scales:{
+            y:{min:1, max:5, ticks:{stepSize:1}, grid:{display:false}},
+            x:{type:'linear', min:-0.5, max:done.length-0.5, ticks:{stepSize:1, callback:(_,i)=>st(done[i]?.title??''), font:{size:10}}, grid:{display:false}}
+        }
+    });
+    document.getElementById('ratingsChart').style.height = '280px';
+
+    const ebArr = (means, sds) => means.map((m,i) => ({ min: m-sds[i], max: m+sds[i] }));
+
+    const pKeys = ['lars','nilsarne','jardar'];
+    const pMeans = pKeys.map(k => gMean(done.map(b=>b[k])));
+    const pSDs   = pKeys.map(k => gSSD(done.map(b=>b[k])));
+    makeChart('personAvgChart','bar',{
+        labels:['Lars','Nils Arne','Jardar'],
+        datasets:[{label:'Snittkarakter',data:pMeans.map(v=>+v.toFixed(2)),backgroundColor:[LC,NC,JC],borderColor:[LB,NB,JB],borderWidth:2,errorBars:ebArr(pMeans,pSDs)}]
+    },{responsive:true,plugins:{legend:{display:false}},scales:scaleY(1,5.5)});
+
+    const cMeans = ['Lars','Nils Arne','Jardar'].map(p => { const bks=done.filter(b=>b.chosenBy===p); return gMean(bks.map(b=>b.avg)); });
+    const cSDs   = ['Lars','Nils Arne','Jardar'].map(p => { const bks=done.filter(b=>b.chosenBy===p); return gSSD(bks.map(b=>b.avg)); });
+    makeChart('chosenByChart','bar',{
+        labels:['Lars','Nils Arne','Jardar'],
+        datasets:[{label:'Snittkarakter for valgte bøker',data:cMeans.map(v=>+v.toFixed(2)),backgroundColor:[LC,NC,JC],borderColor:[LB,NB,JB],borderWidth:2,errorBars:ebArr(cMeans,cSDs)}]
+    },{responsive:true,plugins:{legend:{display:false}},scales:scaleY(1,5.5)});
+
+    const svoData = ['Lars','Nils Arne','Jardar'].map((p,i) => {
+        const k = pKeys[i];
+        const s = done.filter(b=>b.chosenBy===p).map(b=>b[k]);
+        const o = done.filter(b=>b.chosenBy!==p).map(b=>b[k]);
+        return { sm: gMean(s), ss: gSSD(s), om: gMean(o), os: gSSD(o) };
+    });
+    makeChart('selfVsOthersChart','bar',{
+        labels:['Lars','Nils Arne','Jardar'],
+        datasets:[
+            {label:'Selvvalgte bøker',data:svoData.map(d=>+d.sm.toFixed(2)),backgroundColor:'rgba(99,102,241,0.75)',borderColor:'#6366f1',borderWidth:2,errorBars:svoData.map(d=>({min:d.sm-d.ss,max:d.sm+d.ss}))},
+            {label:'Andres bøker',    data:svoData.map(d=>+d.om.toFixed(2)),backgroundColor:'rgba(165,180,252,0.6)', borderColor:'#a5b4fc',borderWidth:2,errorBars:svoData.map(d=>({min:d.om-d.os,max:d.om+d.os}))},
+        ]
+    },{responsive:true,plugins:{legend:{position:'top'}},scales:scaleY(1,5.5)});
+
+    const cc={};
+    done.forEach(b=>{ cc[b.country]=(cc[b.country]||0)+1; });
+    const sc=Object.entries(cc).sort((a,b)=>b[1]-a[1]);
+    const pal=['#6366f1','#f97316','#3b82f6','#10b981','#f59e0b','#ef4444','#8b5cf6','#ec4899','#14b8a6','#a78bfa','#34d399','#84cc16'];
+    makeChart('countriesChart','doughnut',{
+        labels:sc.map(c=>c[0]),
+        datasets:[{data:sc.map(c=>c[1]),backgroundColor:pal,borderWidth:2,borderColor:'#fff'}]
+    },{responsive:true,plugins:{legend:{position:'right',labels:{font:{size:12},padding:12}}}});
+
+    // ---- LINE CHART: karakterutvikling ----
+    makeChart('lineChart','line',{
+        labels: done.map(b => st(b.title)),
+        datasets:[
+            {label:'Lars',      data:done.map(b=>b.lars),     borderColor:LB, backgroundColor:'rgba(59,130,246,0.08)',  pointBackgroundColor:LB, pointRadius:4, tension:0.3, fill:false},
+            {label:'Nils Arne', data:done.map(b=>b.nilsarne), borderColor:NB, backgroundColor:'rgba(16,185,129,0.08)',  pointBackgroundColor:NB, pointRadius:4, tension:0.3, fill:false},
+            {label:'Jardar',    data:done.map(b=>b.jardar),   borderColor:JB, backgroundColor:'rgba(245,158,11,0.08)',  pointBackgroundColor:JB, pointRadius:4, tension:0.3, fill:false},
+            {label:'Gjennomsnitt', data:done.map(b=>b.avg),   borderColor:'#1c0f08', backgroundColor:'rgba(0,0,0,0.05)', pointBackgroundColor:'#1c0f08', pointRadius:5, borderWidth:2.5, tension:0.3, fill:false, borderDash:[4,3]},
+        ]
+    },{responsive:true,plugins:{legend:{position:'top'}},scales:{y:{min:1,max:5,ticks:{stepSize:1}},x:{ticks:{font:{size:10}}}}});
+
+    // ---- VÅR VURDERING VS GOODREADS ----
+    makeChart('vsGoodreadsChart','bar',{
+        labels: done.map(b => st(b.title)),
+        datasets:[
+            {label:'Vår vurdering', data:done.map(b=>b.avg),      backgroundColor:'rgba(68,114,196,0.85)', borderColor:'#4472C4', borderWidth:1, categoryPercentage:0.7, barPercentage:0.9},
+            {label:'GoodReads',     data:done.map(b=>b.goodreads), backgroundColor:'rgba(255,100,100,0.85)', borderColor:'#ff4444', borderWidth:1, categoryPercentage:0.7, barPercentage:0.9},
+        ]
+    },{responsive:true,plugins:{legend:{position:'top'}},scales:{y:{min:1,max:5,ticks:{stepSize:0.5}},x:{ticks:{font:{size:10}}}}});
+
+    // ---- DIFF (VÅR - GOODREADS) ----
+    const diffData = done.map(b => +(b.avg - b.goodreads).toFixed(2));
+    makeChart('diffChart','bar',{
+        labels: done.map(b => st(b.title)),
+        datasets:[{
+            label:'Diff (Vår − GR)',
+            data: diffData,
+            backgroundColor: diffData.map(v => v >= 0 ? 'rgba(34,197,94,0.75)' : 'rgba(239,68,68,0.75)'),
+            borderColor:     diffData.map(v => v >= 0 ? '#16a34a' : '#dc2626'),
+            borderWidth: 1,
+        }]
+    },{responsive:true,plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>`Diff: ${ctx.raw > 0 ? '+' : ''}${ctx.raw}`}}},
+      scales:{y:{ticks:{stepSize:0.5},grid:{color:ctx=>ctx.tick.value===0?'rgba(0,0,0,0.3)':'rgba(0,0,0,0.05)'}},x:{ticks:{font:{size:10}}}}});
+
+    // ---- TIDSLINJE BOKUTGIVELSE ----
+    renderTimeline(books);
+
+    // ---- KJØNNSFORDELING FORFATTERE ----
+    const genderCount = {Mann:0, Kvinne:0, Ukjent:0};
+    done.forEach(b => { const g = authorGenders[b.author] || 'Ukjent'; genderCount[g]++; });
+    const gKeys = Object.keys(genderCount).filter(k => genderCount[k] > 0);
+    makeChart('genderAuthorsChart','doughnut',{
+        labels: gKeys,
+        datasets:[{
+            data: gKeys.map(k=>genderCount[k]),
+            backgroundColor:['rgba(59,130,246,0.8)','rgba(236,72,153,0.8)','rgba(156,163,175,0.8)'],
+            borderWidth:2, borderColor:'#fff'
+        }]
+    },{responsive:true,plugins:{legend:{position:'right',labels:{font:{size:13},padding:14}}}});
+
+    // ---- KJØNNSFORDELING BØKER VALGT AV ----
+    const genderByPicker = ['Lars','Nils Arne','Jardar'].map(p => {
+        const bks = done.filter(b => b.chosenBy === p);
+        return {
+            mann:   bks.filter(b => (authorGenders[b.author]||'Ukjent') === 'Mann').length,
+            kvinne: bks.filter(b => (authorGenders[b.author]||'Ukjent') === 'Kvinne').length,
+        };
+    });
+    makeChart('genderPickerChart','bar',{
+        labels:['Lars','Nils Arne','Jardar'],
+        datasets:[
+            {label:'Mann',   data:genderByPicker.map(g=>g.mann),   backgroundColor:'rgba(59,130,246,0.8)',  borderColor:'#3b82f6', borderWidth:1},
+            {label:'Kvinne', data:genderByPicker.map(g=>g.kvinne), backgroundColor:'rgba(236,72,153,0.8)',  borderColor:'#ec4899', borderWidth:1},
+        ]
+    },{responsive:true,plugins:{legend:{position:'top'}},scales:{x:{stacked:true},y:{stacked:true,ticks:{stepSize:1}}}});
+
+    // ---- KJØNNSFORDELING HOVEDPERSON ----
+    const mainCharCount = {Mann:0, Kvinne:0, Ukjent:0};
+    done.forEach(b => { const g = mainCharGenders[b.title] || 'Ukjent'; mainCharCount[g]++; });
+    const mcKeys = Object.keys(mainCharCount).filter(k => mainCharCount[k] > 0);
+    makeChart('genderMainCharChart','doughnut',{
+        labels: mcKeys,
+        datasets:[{
+            data: mcKeys.map(k=>mainCharCount[k]),
+            backgroundColor:['rgba(59,130,246,0.8)','rgba(236,72,153,0.8)','rgba(156,163,175,0.8)'],
+            borderWidth:2, borderColor:'#fff'
+        }]
+    },{responsive:true,plugins:{legend:{position:'right',labels:{font:{size:13},padding:14}}}});
+
+    // ---- PERSON STATS ----
+    function buildStats(name, key) {
+        const rs=done.map(b=>b[key]);
+        const avg=rs.reduce((s,r)=>s+r,0)/rs.length;
+        const sd=Math.sqrt(rs.reduce((s,r)=>s+(r-avg)**2,0)/rs.length);
+        const ch=done.filter(b=>b.chosenBy===name);
+        const chAvg=ch.reduce((s,b)=>s+b.avg,0)/ch.length;
+        const selfAvg=ch.reduce((s,b)=>s+b[key],0)/ch.length;
+        const fives=done.filter(b=>b[key]===5).length;
+        const lows=done.filter(b=>b[key]<=2).length;
+        const best=[...done].sort((a,b)=>b[key]-a[key])[0];
+        const worst=[...done].sort((a,b)=>a[key]-b[key])[0];
+        const row=(l,v)=>`<div class="person-stat"><span class="stat-label">${l}</span><span class="stat-val">${v}</span></div>`;
+        return [
+            row('Snittkarakter gitt',avg.toFixed(2)),
+            row('Standardavvik',sd.toFixed(2)),
+            row('Antall 5-ere',fives),
+            row('Antall ≤ 2',lows),
+            row('Antall bøker valgt',ch.length),
+            row('Snitt egne valg (alle)',chAvg.toFixed(2)),
+            row('Snitt egne valg (deg selv)',selfAvg.toFixed(2)),
+            row(`Høyest gitt (${best[key]})`,best.title.length>22?best.title.slice(0,20)+'…':best.title),
+            row('Lavest gitt',worst.title.length>22?worst.title.slice(0,20)+'…':worst.title),
+        ].join('');
+    }
+    document.getElementById('larsStats').innerHTML     = buildStats('Lars','lars');
+    document.getElementById('nilsarneStats').innerHTML = buildStats('Nils Arne','nilsarne');
+    document.getElementById('jardarStats').innerHTML   = buildStats('Jardar','jardar');
+
+    // ---- INSIGHTS ----
+    const best    = done.reduce((b,x)=>x.avg>b.avg?x:b);
+    const worst2  = done.reduce((b,x)=>x.avg<b.avg?x:b);
+    const longest = done.reduce((b,x)=>x.pages>b.pages?x:b);
+    const shortest= done.reduce((b,x)=>x.pages<b.pages?x:b);
+    const haswk   = done.filter(b=>b.weeks);
+    const slowR   = haswk.reduce((b,x)=>x.weeks>b.weeks?x:b);
+    const fastR   = haswk.reduce((b,x)=>x.weeks<b.weeks?x:b);
+    const spread  = b=>Math.max(b.lars,b.nilsarne,b.jardar)-Math.min(b.lars,b.nilsarne,b.jardar);
+    const agree   = done.reduce((b,x)=>spread(x)<spread(b)?x:b);
+    const disagree= done.reduce((b,x)=>spread(x)>spread(b)?x:b);
+    const grdiff  = (k)=>done.reduce((s,b)=>s+Math.abs(b[k]-b.goodreads),0)/done.length;
+    const grd     = [['Lars',grdiff('lars')],['Nils Arne',grdiff('nilsarne')],['Jardar',grdiff('jardar')]];
+    const aligned = grd.reduce((b,x)=>x[1]<b[1]?x:b);
+    const topC    = sc[0];
+    const totWk   = haswk.reduce((s,b)=>s+b.weeks,0);
+    const nextBook= books.find(b=>b.upcoming);
+
+    const insights=[
+        {icon:'⭐',label:'Mest populære bok',    value:best.title,        note:`Snitt: ${best.avg.toFixed(2)}`},
+        {icon:'📉',label:'Minst populære bok',   value:worst2.title,      note:`Snitt: ${worst2.avg.toFixed(2)}`},
+        {icon:'📖',label:'Lengste bok',           value:longest.title,     note:`${longest.pages} sider`},
+        {icon:'📄',label:'Korteste bok',          value:shortest.title,    note:`${shortest.pages} sider`},
+        {icon:'⏳',label:'Tok lengst å lese',     value:slowR.title,       note:`${slowR.weeks} uker`},
+        {icon:'⚡',label:'Lest raskest',          value:fastR.title,       note:`${fastR.weeks} uke(r)`},
+        {icon:'🤝',label:'Mest enighet om',       value:agree.title,       note:`${agree.lars}/${agree.nilsarne}/${agree.jardar}`},
+        {icon:'⚔️',label:'Størst uenighet om',   value:disagree.title,    note:`${disagree.lars}/${disagree.nilsarne}/${disagree.jardar}`},
+        {icon:'📊',label:'Mest lik Goodreads',    value:aligned[0],        note:`Avg. avvik: ${aligned[1].toFixed(2)}`},
+        {icon:'🌍',label:'Flest bøker fra',       value:topC[0],           note:`${topC[1]} bøker`},
+        {icon:'📅',label:'Totalt lesetid',         value:`${totWk} uker`,  note:`≈ ${Math.round(totWk/4.3)} måneder`},
+        {icon:'🗂️',label:'Neste bok',             value: nextBook ? nextBook.title : '–', note: nextBook ? `Valgt av ${nextBook.chosenBy} · ${nextBook.pages} sider` : ''},
+    ];
+    document.getElementById('insightGrid').innerHTML = insights.map(i=>`
+        <div class="insight-card">
+            <div class="icon">${i.icon}</div>
+            <div class="ic-label">${i.label}</div>
+            <div class="ic-value">${i.value}</div>
+            <div class="ic-note">${i.note}</div>
+        </div>
+    `).join('');
+}
+
+// ===================== LOAD DATA =====================
+async function loadData() {
+    setStatus('loading', 'Henter data fra Google Sheets…');
+    document.getElementById('refreshBtn').disabled = true;
+
+    try {
+        const t = Date.now();
+        const [res1, res2] = await Promise.allSettled([
+            fetch(CSV_URL    + '&t=' + t),
+            fetch(SHEET2_URL + '&t=' + t),
+        ]);
+
+        if (res1.status === 'rejected' || !res1.value.ok)
+            throw new Error(res1.reason || `HTTP ${res1.value?.status}`);
+
+        const text  = await res1.value.text();
+        const rows  = parseCSV(text);
+        const books = csvToBooks(rows);
+        if (books.length === 0) throw new Error('Ingen bøker funnet i arket');
+
+        // Parse sheet 2 (metadata) — non-fatal if it fails
+        if (res2.status === 'fulfilled' && res2.value.ok) {
+            const text2 = await res2.value.text();
+            parseSheet2(parseCSV(text2));
+        } else {
+            console.warn('Ark 2 kunne ikke lastes:', res2.reason || res2.value?.status);
+        }
+
+        document.getElementById('loadingOverlay').style.display = 'none';
+        document.getElementById('mainContent').style.display    = 'block';
+        renderAll(books);
+
+        const now = new Date().toLocaleTimeString('no', {hour:'2-digit', minute:'2-digit'});
+        setStatus('ok', `Oppdatert fra Google Sheets kl. ${now}`);
+
+    } catch (err) {
+        console.error('Fetch failed:', err);
+        document.getElementById('loadingOverlay').style.display = 'none';
+        document.getElementById('mainContent').style.display    = 'block';
+
+        // Fall back to hardcoded data
+        renderAll(FALLBACK_BOOKS);
+        setStatus('err',
+            `Kunne ikke laste fra Google Sheets (${err.message}). Viser sist kjente data. ` +
+            `Kontroller at arket er delt som «Alle med lenken kan se».`
+        );
+    }
+
+    document.getElementById('refreshBtn').disabled = false;
+
+    // Re-attach event listeners (they survive if mainContent was already visible)
+    document.getElementById('searchInput').oninput = e => { filterText = e.target.value; renderTable(); };
+    document.getElementById('chosenByFilter').onchange = e => { filterChosenBy = e.target.value; renderTable(); };
+}
+
+// ===================== FALLBACK DATA =====================
+// Used only if Google Sheets fetch fails.
+const FALLBACK_BOOKS = [
+    { id:1,  title:"Markens Grøde",                    year:1917, author:"Knut Hamsun",            country:"Norge",      lars:2, nilsarne:3, jardar:4, avg:3.00, dateFinished:"sommer 2022",    weeks:null, pages:304, chosenBy:"Nils Arne", goodreads:4.23 },
+    { id:2,  title:"Thirteen Hours",                   year:2008, author:"Deon Meyers",            country:"Sør Afrika", lars:4, nilsarne:3, jardar:3, avg:3.33, dateFinished:"september 2022", weeks:13,   pages:416, chosenBy:"Lars",      goodreads:4.11 },
+    { id:3,  title:"Last Summer in the City",          year:1973, author:"Gianfranco Calligarich", country:"Italia",     lars:4, nilsarne:3, jardar:4, avg:3.67, dateFinished:"november 2022",  weeks:9,    pages:192, chosenBy:"Jardar",    goodreads:3.68 },
+    { id:4,  title:"The Secret History",               year:1992, author:"Donna Tartt",            country:"USA",        lars:5, nilsarne:4, jardar:4, avg:4.33, dateFinished:"februar 2023",   weeks:13,   pages:629, chosenBy:"Jardar",    goodreads:4.17 },
+    { id:5,  title:"Beneath the Lion's Gaze",          year:2010, author:"Maaza Mengiste",         country:"Etiopia",    lars:4, nilsarne:4, jardar:3, avg:3.67, dateFinished:"mai 2023",       weeks:13,   pages:302, chosenBy:"Nils Arne", goodreads:3.95 },
+    { id:6,  title:"Lapvona",                          year:2022, author:"Ottessa Moshfegh",       country:"USA",        lars:2, nilsarne:3, jardar:2, avg:2.33, dateFinished:"august 2023",    weeks:13,   pages:313, chosenBy:"Lars",      goodreads:3.54 },
+    { id:7,  title:"Captains of the Sands",            year:1937, author:"Jorge Amado",            country:"Brasil",     lars:3, nilsarne:3, jardar:4, avg:3.33, dateFinished:"januar 2024",    weeks:22,   pages:261, chosenBy:"Jardar",    goodreads:4.35 },
+    { id:8,  title:"The Book of Goose",                year:2022, author:"Yiyun Li",               country:"USA",        lars:4, nilsarne:3, jardar:3, avg:3.33, dateFinished:"februar 2024",   weeks:4,    pages:368, chosenBy:"Lars",      goodreads:3.73 },
+    { id:9,  title:"Om utregning av romfang 1",        year:2020, author:"Solvej Balle",           country:"Danmark",    lars:3, nilsarne:4, jardar:3, avg:3.33, dateFinished:"mars 2024",      weeks:4,    pages:211, chosenBy:"Nils Arne", goodreads:3.79 },
+    { id:10, title:"Trilogien",                        year:2014, author:"Jon Fosse",              country:"Norge",      lars:3, nilsarne:4, jardar:3, avg:3.33, dateFinished:"mai 2024",       weeks:9,    pages:238, chosenBy:"Nils Arne", goodreads:3.94 },
+    { id:11, title:"The Honjin Murders",               year:1946, author:"Seishi Yokomizo",        country:"Japan",      lars:3, nilsarne:3, jardar:3, avg:3.00, dateFinished:"september 2024", weeks:18,   pages:189, chosenBy:"Lars",      goodreads:3.66 },
+    { id:12, title:"Brave New World",                  year:1932, author:"Aldous Huxley",          country:"England",    lars:3, nilsarne:4, jardar:5, avg:4.00, dateFinished:"november 2024",  weeks:9,    pages:229, chosenBy:"Jardar",    goodreads:3.99 },
+    { id:13, title:"Kim Jiyoung, Born 1982",           year:2016, author:"Cho Nam-Joo",            country:"Sør Korea",  lars:4, nilsarne:4, jardar:5, avg:4.33, dateFinished:"desember 2024",  weeks:4,    pages:163, chosenBy:"Jardar",    goodreads:4.17 },
+    { id:14, title:"Kokoro",                           year:1914, author:"Natsume Soseki",         country:"Japan",      lars:4, nilsarne:3, jardar:4, avg:3.67, dateFinished:"februar 2025",   weeks:9,    pages:229, chosenBy:"Lars",      goodreads:4.04 },
+    { id:15, title:"The Big Sleep",                    year:1939, author:"Raymond Chandler",       country:"USA",        lars:3, nilsarne:2, jardar:2, avg:2.33, dateFinished:"mai 2025",       weeks:13,   pages:250, chosenBy:"Nils Arne", goodreads:3.95 },
+    { id:16, title:"The Master and Margarita",         year:1967, author:"Mikhail Bulgakov",       country:"Russland",   lars:4, nilsarne:4, jardar:4, avg:4.00, dateFinished:"juli 2025",      weeks:9,    pages:372, chosenBy:"Jardar",    goodreads:4.29 },
+    { id:17, title:"Ikke mennesker jeg kan regne med", year:2024, author:"Kyrre Andreassen",       country:"Norge",      lars:4, nilsarne:4, jardar:3, avg:3.67, dateFinished:"september 2025", weeks:9,    pages:398, chosenBy:"Nils Arne", goodreads:3.99 },
+    { id:18, title:"Youth",                            year:2002, author:"J.M. Coetzee",           country:"Sør Afrika", lars:2, nilsarne:3, jardar:4, avg:3.00, dateFinished:"oktober 2025",   weeks:4,    pages:176, chosenBy:"Lars",      goodreads:3.78 },
+    { id:19, title:"Satantango",                       year:1985, author:"László Krasznahorkai",   country:"Ungarn",     lars:3, nilsarne:4, jardar:2, avg:3.00, dateFinished:"januar 2026",    weeks:15,   pages:282, chosenBy:"Nils Arne", goodreads:4.18 },
+    { id:20, title:"Compass",                          year:2015, author:"Mathias Énard",          country:"Frankrike",  lars:5, nilsarne:4, jardar:5, avg:4.67, dateFinished:"mars 2026",      weeks:8,    pages:475, chosenBy:"Lars",      goodreads:3.79 },
+    { id:21, title:"Pride and Prejudice",              year:1813, author:"Jane Austen",            country:"England",    lars:null, nilsarne:null, jardar:null, avg:null, dateFinished:null, weeks:null, pages:400, chosenBy:"Jardar", goodreads:4.30, upcoming:true },
+];
+
+// ===================== BOOT =====================
+loadData();
+</script>
+</body>
+</html>
