@@ -736,7 +736,7 @@ function renderTable() {
     document.getElementById('booksBody').innerHTML = data.map(b => `
         <tr class="${b.upcoming ? 'upcoming' : ''}">
             <td style="font-family:sans-serif;color:var(--text-muted);font-size:0.85rem">${b.id}</td>
-            <td class="title-cell">${b.title}${b.upcoming ? '<span class="upcoming-tag">Neste</span>' : ''}</td>
+            <td class="title-cell">${b.title}${b.upcoming ? '<span class="upcoming-tag">Nåværende</span>' : ''}</td>
             <td>${b.author}${nobelStatus[b.author] ? '<span class="nobel-badge">Nobel</span>' : ''}</td>
             <td style="font-family:sans-serif">${b.year}</td>
             <td style="font-family:sans-serif;font-size:0.85rem">${b.country}</td>
