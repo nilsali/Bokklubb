@@ -154,6 +154,7 @@
         tbody tr:last-child { border-bottom: none; }
         tbody tr:hover { background: #f8fafc; }
         tbody tr.upcoming { opacity: 0.55; font-style: italic; }
+        tbody tr.trio-end { border-bottom: 2px solid #94a3b8; }
         td { padding: 0.7rem 1rem; white-space: nowrap; }
         td.title-cell { white-space: normal; min-width: 180px; font-weight: 500; }
 
@@ -734,7 +735,7 @@ function renderTable() {
     });
 
     document.getElementById('booksBody').innerHTML = data.map(b => `
-        <tr class="${b.upcoming ? 'upcoming' : ''}">
+        <tr class="${b.upcoming ? 'upcoming' : ''}${b.id % 3 === 0 ? ' trio-end' : ''}">
             <td style="font-family:sans-serif;color:var(--text-muted);font-size:0.85rem">${b.id}</td>
             <td class="title-cell">${b.title}${b.upcoming ? '<span class="upcoming-tag">Nåværende</span>' : ''}</td>
             <td>${b.author}${nobelStatus[b.author] ? '<span class="nobel-badge">Nobel</span>' : ''}</td>
