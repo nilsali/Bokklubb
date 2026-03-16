@@ -456,7 +456,7 @@
             <div class="stat-table-card">
                 <h3>Sidetall</h3>
                 <table class="stattable" id="tSidetall">
-                    <thead><tr><th>Bok valgt av</th><th>Gjennomsnitt</th><th>Min</th><th>Max</th><th>Stdavvik</th><th>Forv. min</th><th>Forv. max</th></tr></thead>
+                    <thead><tr><th>Bok valgt av</th><th>Totalt</th><th>Min</th><th>Max</th><th>Stdavvik</th><th>Forv. min</th><th>Forv. max</th></tr></thead>
                     <tbody></tbody>
                 </table>
             </div>
@@ -943,7 +943,7 @@ function renderStatTables(books) {
         return rows.join('');
     };
 
-    document.querySelector('#tSidetall tbody').innerHTML  = buildRangeRows(b => [b.pages], 'Gjennomsnitt', true);
+    document.querySelector('#tSidetall tbody').innerHTML  = buildRangeRows(b => [b.pages], 'Totalt', true);
     document.querySelector('#tAarstall tbody').innerHTML  = buildRangeRows(b => [b.year],  'Totalt',       true);
 }
 
