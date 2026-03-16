@@ -7,6 +7,7 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/topojson-client@3/dist/topojson-client.min.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -848,13 +849,10 @@ async function renderWorldMap(books) {
         });
         const maxCount = Math.max(...Object.values(counts), 1);
 
-        const geojson = await fetch('https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json')
+        const world = await fetch('https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json')
             .then(r => r.json());
-        const countries = topojson.feature(geojson, geojson.objects.countries);
+        const countries = topojson.feature(world, world.objects.countries);
 
-        // Enrich features with country names from a name lookup
-        const nameRes = await fetch('https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json').then(r=>r.json());
-        // Use a simple numeric→name map via restcountries alternative: embed minimal map
         const NUM_TO_NAME = {
             840:'United States of America',826:'United Kingdom',276:'Germany',250:'France',
             380:'Italy',724:'Spain',616:'Poland',643:'Russia',392:'Japan',410:'South Korea',
